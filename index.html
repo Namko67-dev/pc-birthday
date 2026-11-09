@@ -175,6 +175,20 @@ section.viewer-sec { border-top: 0; padding-block: 0 48px; }
 .mark { position: absolute; top: -4px; width: 2px; height: 18px; background: var(--fg); opacity: .5; }
 .budget-legend { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; font-size: 0.88rem; color: var(--muted); }
 
+.kufar { margin-top: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 10px; }
+.k-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; align-items: baseline; }
+.k-head b { font-family: var(--display); font-weight: 600; font-size: 1.05rem; }
+.k-head span { color: var(--muted); font-size: 0.86rem; }
+.k-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.k-list li { display: grid; grid-template-columns: 1fr auto auto auto; gap: 6px 18px; align-items: center; padding-block: 9px; border-top: 1px solid var(--line); font-size: 0.93rem; }
+.k-list .kt { min-width: 0; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+.k-list .kmeta { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
+.k-list .kp { font-family: var(--mono); font-weight: 500; white-space: nowrap; text-align: right; }
+.k-list a { color: var(--accent); text-decoration: none; font-size: 0.86rem; white-space: nowrap; }
+.k-list a:hover { text-decoration: underline; }
+.kbadge { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.kbadge.new { border-color: var(--ok); color: var(--ok); }
+.k-empty { color: var(--muted); font-size: 0.93rem; }
 .versus { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .vs-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px; display: grid; gap: 10px; align-content: start; }
 .vs-card h3 { font-size: 1.3rem; }
@@ -215,6 +229,8 @@ footer { padding-block: 32px 48px; color: var(--muted); font-size: 0.85rem; bord
   .part-img { width: 64px; height: 52px; }
   .part-price { grid-column: 2; justify-items: start; text-align: left; }
   .versus { grid-template-columns: 1fr; }
+  .k-list li { grid-template-columns: 1fr auto; }
+  .k-list .kmeta { grid-column: 1; }
   .buy li { grid-template-columns: 24px 52px 1fr; }
   .buy .bimg { width: 52px; height: 42px; }
   .buy .bright { grid-column: 3; justify-items: start; }
@@ -326,7 +342,7 @@ footer { padding-block: 32px 48px; color: var(--muted); font-size: 0.85rem; bord
         <h3>RX 7800 XT</h3>
         <ul class="pros">
           <li>16 ГБ видеопамяти: запас для новых игр на годы</li>
-          <li>Дешевле примерно на 250 BYN</li>
+          <li>Дешевле примерно на 800 BYN, единственная укладывается в 2 000 €</li>
           <li>Белая, подходит к сборке по цвету</li>
         </ul>
         <ul class="cons">
@@ -345,9 +361,9 @@ footer { padding-block: 32px 48px; color: var(--muted); font-size: 0.85rem; bord
         </ul>
         <ul class="cons">
           <li>12 ГБ видеопамяти, в будущих играх может стать тесно</li>
-          <li>Дороже, б/у около 2 200–2 400 BYN</li>
+          <li>Дороже: б/у на Kufar 2 950–3 250 BYN, сборка выходит около 2 180 €</li>
         </ul>
-        <button type="button" class="tbtn primary" data-pick="u4070tiw">Выбрать RTX 4070 Ti</button>
+        <button type="button" class="tbtn primary" data-pick="u4070ti">Выбрать RTX 4070 Ti</button>
       </div>
     </div>
     <p class="note">Коротко: если важны лучи и технологии NVIDIA, берём RTX 4070 Ti. Если важнее запас памяти и экономия под белую сборку, берём RX 7800 XT.</p>
@@ -357,9 +373,10 @@ footer { padding-block: 32px 48px; color: var(--muted); font-size: 0.85rem; bord
     <div class="sec-head">
       <span class="label">Комплектующие и цены</span>
       <h2>Из чего состоит сборка</h2>
-      <p>Чтобы уложиться в бюджет 1 800–2 000 €, видеокарту лучше брать б/у: это экономит 1 500 BYN и больше. Белые подходят к сборке по цвету, чёрные часто дешевле. Выбор сразу меняет 3D-модель, сумму и таблицу FPS.</p>
+      <p>Цены б/у видеокарт — по реальным объявлениям на Kufar: под выбранной картой показаны все её объявления, любые исполнения. Б/у заметно дороже, чем год назад, поэтому в 2 000 € сейчас укладывается только RX 7800 XT. Выбор сразу меняет 3D-модель, сумму и таблицу FPS.</p>
     </div>
     <div class="gpu-grid" id="gpuGrid" role="group" aria-label="Выбор видеокарты"></div>
+    <div class="kufar" id="kufarBox"></div>
     <ol class="parts" id="partsList"></ol>
     <div class="sum">
       <div class="row-l">Сумма всех деталей</div><div class="row-r num" id="sumAll">—</div>
@@ -371,7 +388,7 @@ footer { padding-block: 32px 48px; color: var(--muted); font-size: 0.85rem; bord
         <div class="budget-legend"><span id="budgetText"></span><span class="num">цель 1 800 € · максимум 2 000 €</span></div>
       </div>
     </div>
-    <p class="note">Новые детали: самые низкие цены у магазинов на Onliner с рейтингом 4,8–5 и сотнями отзывов, на 9 ноября 2026 года. Видеокарты б/у: медиана объявлений на Kufar, в скобках разброс цен. Евро по курсу НБРБ 3,3424 BYN. Фото товаров: каталог Onliner.</p>
+    <p class="note">Новые детали: самые низкие цены у магазинов на Onliner с рейтингом 4,8–5 и сотнями отзывов, на 9 ноября 2026 года. Видеокарты б/у: медиана объявлений на Kufar на 9 ноября 2026 года, разброс указан рядом с ценой. Евро по курсу НБРБ 3,3424 BYN. Фото товаров: каталог Onliner.</p>
   </section>
 
   <section id="buy">
@@ -419,63 +436,122 @@ const USED_NOTE = "Б/у: перед покупкой проверить кар�
 
 const GPUS = {
   u7800xtw: {
-    short: "RX 7800 XT", brand: "Sapphire Pure", color: "белая", swatch: "#f2f4f6", tag: "16 ГБ · дешевле всего", used: true, range: "1 650–2 400",
-    name: "Sapphire Pure Radeon RX 7800 XT 16 ГБ (б/у)", price: 2050, url: KUF("rx 7800 xt"), photos: imgs("u7800xtw", 4),
-    desc: "Белая, с 16 ГБ памяти и подсветкой. Самый дешёвый вариант в списке. Медленнее RX 9070 XT примерно на 20%, но в 2K на высоких настройках играет уверенно.",
+    short: "RX 7800 XT", brand: "Sapphire Pure", color: "белая", swatch: "#f2f4f6", tag: "единственная в бюджете 2 000 €", used: true, chip: "7800xt",
+    name: "Sapphire Pure Radeon RX 7800 XT 16 ГБ (б/у)", price: 2200, url: KUF("rx 7800 xt"), photos: imgs("u7800xtw", 4),
+    desc: "16 ГБ памяти, самый дешёвый вариант и единственный, с которым сборка укладывается в 2 000 €. Медленнее RX 9070 XT примерно на 20%, но в 2K на высоких настройках играет уверенно. Сейчас на Kufar только одно объявление (чёрная Sapphire Pulse), белую Pure придётся подождать.",
     specs: ["16 ГБ видеопамяти GDDR6", "Белый корпус, ARGB-подсветка", "Три вентилятора", USED_NOTE], fps: FPS_7800,
     style: { design: "sapphire", len: 32, fans: 3, plate: 0xf3f5f7, accent: 0xc3cad1, back: 0xe9edf0, blade: 0xffffff, bladeOp: 0.94, hub: "#f6f8fa", hubText: "PURE", hubInk: "#2a2f35", top: "RADEON", topInk: "#6b7580", glow: true }
   },
   u4070ti: {
-    short: "RTX 4070 Ti", brand: "Gigabyte Windforce OC", color: "чёрная", swatch: "#24272b", tag: "б/у", used: true, range: "≈ 2 000–2 500",
-    name: "Gigabyte GeForce RTX 4070 Ti Windforce OC 12 ГБ (б/у)", price: 2200, url: KUF("rtx 4070 ti"), photos: imgs("u4070ti", 4),
-    desc: "Быстрее RTX 4070 Super примерно на 5–8%, есть DLSS 3 и трассировка лучей. Свежих объявлений на Kufar мало, поэтому цена оценочная.",
+    short: "RTX 4070 Ti", brand: "Gigabyte / Palit / MSI", color: "чёрная", swatch: "#24272b", tag: "рекомендую · есть на Kufar", used: true, chip: "4070ti",
+    name: "GeForce RTX 4070 Ti 12 ГБ (б/у, разные исполнения)", price: 3000, url: KUF("rtx 4070 ti"), photos: imgs("u4070ti", 4),
+    desc: "Быстрее RTX 4070 Super примерно на 5–8%, есть DLSS 3 и трассировка лучей. На Kufar сейчас 5 объявлений: Palit, Gigabyte, MSI Ventus, все в пределах 2 950–3 250 BYN.",
     specs: ["12 ГБ видеопамяти GDDR6X", "DLSS 3 и трассировка лучей", "Три вентилятора", USED_NOTE], fps: FPS_TI,
     style: { design: "gigawf", len: 26.1, fans: 3, plate: 0x1f2226, accent: 0x5a626b, back: 0x2a2e33, blade: 0x16181b, bladeOp: 1, hub: "#d9dee3", hubText: "GIGABYTE", hubInk: "#1b1e22", top: "GIGABYTE", topInk: "#c9d0d6", glow: false, dark: true }
   },
   u4070tiw: {
-    short: "RTX 4070 Ti", brand: "MSI Gaming X Trio White", color: "белая", swatch: "#eef1f4", tag: "рекомендую · белая · б/у", used: true, range: "≈ 2 100–2 600",
-    name: "MSI GeForce RTX 4070 Ti Gaming X Trio White 12 ГБ (б/у)", price: 2300, url: KUF("4070 ti white"), photos: imgs("u4070tiw", 4),
-    desc: "Белая с серебристыми вставками и RGB-полосами. Скорость как у чёрной RTX 4070 Ti, но смотрится в белой сборке намного лучше. Цена оценочная.",
+    short: "RTX 4070 Ti", brand: "MSI Gaming X Trio White", color: "белая", swatch: "#eef1f4", tag: "белая · сейчас нет на Kufar", used: true, chip: "4070ti",
+    name: "MSI GeForce RTX 4070 Ti Gaming X Trio White 12 ГБ (б/у)", price: 3000, url: KUF("4070 ti white"), photos: imgs("u4070tiw", 4),
+    desc: "Белая с серебристыми вставками и RGB-полосами, в белой сборке смотрится лучше всего. Белых RTX 4070 Ti на Kufar сейчас нет, поэтому цена взята как у обычной 4070 Ti.",
     specs: ["12 ГБ видеопамяти GDDR6X", "DLSS 3 и трассировка лучей", "Белая, три вентилятора, RGB", USED_NOTE], fps: FPS_TI,
     style: { design: "msi", rgbDiag: true, len: 33.7, fans: 3, plate: 0xeef1f4, accent: 0xb9c1c9, back: 0xe6eaee, blade: 0xffffff, bladeOp: 0.94, hub: "#d7dce1", hubText: "MSI", hubInk: "#4b535c", top: "GEFORCE RTX", topInk: "#6b7580", glow: true }
   },
   u4070s: {
-    short: "RTX 4070 Super", brand: "Palit Dual", color: "чёрная", swatch: "#2a2d32", tag: "б/у", used: true, range: "2 000–2 700",
-    name: "Palit GeForce RTX 4070 Super Dual 12 ГБ (б/у)", price: 2400, url: KUF("rtx 4070 super"), photos: imgs("u4070s", 4),
-    desc: "Компактная, с двумя вентиляторами. Хорошо тянет 2K на высоких, есть DLSS и трассировка лучей. Минус: 12 ГБ видеопамяти.",
+    short: "RTX 4070 Super", brand: "Palit / Gigabyte", color: "чёрная", swatch: "#2a2d32", tag: "больше всего объявлений", used: true, chip: "4070s",
+    name: "GeForce RTX 4070 Super 12 ГБ (б/у, разные исполнения)", price: 2800, url: KUF("rtx 4070 super"), photos: imgs("u4070s", 4),
+    desc: "Хорошо тянет 2K на высоких, есть DLSS и трассировка лучей. Минус: 12 ГБ видеопамяти. На Kufar их больше всего, около десяти объявлений, есть из чего выбрать.",
     specs: ["12 ГБ видеопамяти GDDR6X", "DLSS 3 и трассировка лучей", "Компактная, два вентилятора", USED_NOTE], fps: FPS_4070S,
     style: { design: "palit", len: 26.9, fans: 2, plate: 0x1d2024, accent: 0x34393f, back: 0x24272b, blade: 0x15171a, bladeOp: 1, hub: "#2a2e33", hubText: "PALIT", hubInk: "#e8ecef", top: "GEFORCE RTX", topInk: "#d6dbe0", glow: false, dark: true, green: true }
   },
   u4070sw: {
-    short: "RTX 4070 Super", brand: "MSI Gaming X Slim White", color: "белая", swatch: "#f3f5f7", tag: "белая · б/у", used: true, range: "2 400–2 700",
-    name: "MSI GeForce RTX 4070 Super Gaming X Slim White 12 ГБ (б/у)", price: 2500, url: KUF("4070 super white"), photos: imgs("u4070sw", 4),
-    desc: "Белая и тонкая, красиво смотрится в белой сборке. Скорость как у чёрной RTX 4070 Super, но дороже примерно на 100 BYN.",
+    short: "RTX 4070 Super", brand: "MSI Gaming X Slim White", color: "белая", swatch: "#f3f5f7", tag: "белая · сейчас нет на Kufar", used: true, chip: "4070s",
+    name: "MSI GeForce RTX 4070 Super Gaming X Slim White 12 ГБ (б/у)", price: 2800, url: KUF("4070 super white"), photos: imgs("u4070sw", 4),
+    desc: "Белая и тонкая, красиво смотрится в белой сборке. Скорость как у чёрной RTX 4070 Super. Белых на Kufar сейчас нет, цена взята как у обычной 4070 Super.",
     specs: ["12 ГБ видеопамяти GDDR6X", "DLSS 3 и трассировка лучей", "Тонкая, белая, три вентилятора", USED_NOTE], fps: FPS_4070S,
     style: { design: "msi", len: 30.7, fans: 3, plate: 0xe7ebee, accent: 0xb3bcc5, back: 0xdfe4e8, blade: 0xffffff, bladeOp: 0.94, hub: "#d7dce1", hubText: "MSI", hubInk: "#4b535c", top: "GEFORCE RTX", topInk: "#6b7580", glow: true }
   },
   u9070xt: {
-    short: "RX 9070 XT", brand: "Gigabyte Gaming OC", color: "чёрная", swatch: "#24272b", tag: "самая быстрая в бюджете · б/у", used: true, range: "2 300–2 700",
-    name: "Gigabyte Radeon RX 9070 XT Gaming OC 16 ГБ (б/у)", price: 2400, url: KUF("rx 9070 xt"), photos: imgs("u9070xt", 4),
-    desc: "Самая новая и быстрая карта в бюджете: в 2K на уровне RTX 4070 Ti Super. Новая стоит от 4 100 BYN, б/у на Kufar около 2 400 BYN.",
+    short: "RX 9070 XT", brand: "Sapphire / Gigabyte", color: "чёрная", swatch: "#24272b", tag: "самая быстрая · б/у", used: true, chip: "9070xt",
+    name: "Radeon RX 9070 XT 16 ГБ (б/у, разные исполнения)", price: 3600, url: KUF("rx 9070 xt"), photos: imgs("u9070xt", 4),
+    desc: "Самая новая и быстрая карта в списке: в 2K на уровне RTX 4070 Ti Super, 16 ГБ памяти. На Kufar б/у стоят 3 300–4 000 BYN, новые там же от 3 700 BYN.",
     specs: ["16 ГБ видеопамяти GDDR6", "Архитектура RDNA 4, FSR 4", "Три вентилятора, RGB-логотип", USED_NOTE], fps: FPS_XT,
     style: { design: "gigabyte", len: 28.8, fans: 3, plate: 0x1c1f23, accent: 0x9aa3ad, back: 0x26292d, blade: 0x15171a, bladeOp: 1, hub: "#1f2226", hubText: "GIGABYTE", hubInk: "#e8ecef", top: "RADEON", topInk: "#b8c0c8", glow: true, dark: true }
   },
   u4070tis: {
-    short: "RTX 4070 Ti Super", brand: "Palit JetStream OC", color: "чёрная", swatch: "#1f2226", tag: "б/у", used: true, range: "2 680–2 900",
-    name: "Palit GeForce RTX 4070 Ti Super JetStream OC 16 ГБ (б/у)", price: 2750, url: KUF("4070 ti super"), photos: imgs("u4070tis", 4),
-    desc: "Та самая карта, которую я хотел изначально: 16 ГБ памяти и DLSS. С ней сборка чуть выходит за 2 000 €.",
+    short: "RTX 4070 Ti Super", brand: "Palit / PNY / Inno3D", color: "чёрная", swatch: "#1f2226", tag: "б/у · дорогая", used: true, chip: "4070tis",
+    name: "GeForce RTX 4070 Ti Super 16 ГБ (б/у, разные исполнения)", price: 4000, url: KUF("4070 ti super"), photos: imgs("u4070tis", 4),
+    desc: "Та самая карта, которую я хотел изначально: 16 ГБ памяти и DLSS. На Kufar сейчас стоит 3 100–5 000 BYN, поэтому сборка с ней заметно выходит за 2 000 €.",
     specs: ["16 ГБ видеопамяти GDDR6X", "DLSS 3 и трассировка лучей", "Три вентилятора", USED_NOTE], fps: FPS_TIS,
     style: { design: "palit", len: 29.9, fans: 3, plate: 0x1b1d21, accent: 0x31363c, back: 0x202327, blade: 0x15171a, bladeOp: 1, hub: "#2a2e33", hubText: "PALIT", hubInk: "#e8ecef", top: "GEFORCE RTX", topInk: "#d6dbe0", glow: false, dark: true }
   },
   n9070xtw: {
-    short: "RX 9070 XT", brand: "ASUS Prime White, новая", color: "белая", swatch: "#f4f6f8", tag: "новая, для сравнения", used: false,
+    short: "RX 9070 XT", brand: "ASUS Prime White, новая", color: "белая", swatch: "#f4f6f8", tag: "новая, с гарантией", used: false, chip: "9070xt",
     name: "ASUS Prime Radeon RX 9070 XT White OC 16 ГБ (новая)", price: 3899.61, shop: "Onliner, самая низкая цена", url: "/videocard/asus/prime9070xto16wh", photos: imgs("n9070xtw", 4),
-    desc: "Новая с гарантией из магазина. Для сравнения: с ней сборка выходит далеко за бюджет, поэтому выгоднее брать б/у.",
+    desc: "Новая, белая, с гарантией магазина. На Onliner от 3 900 BYN, на Kufar магазин продаёт такую же за 3 710 BYN. Ненамного дороже б/у RX 9070 XT, но с гарантией.",
     specs: ["16 ГБ видеопамяти GDDR6", "Архитектура RDNA 4, FSR 4", "Полностью белая, три вентилятора", "Новая, гарантия магазина"], fps: FPS_XT,
     style: { design: "prime", len: 31.3, fans: 3, plate: 0xf5f7f9, accent: 0xd5dbe0, back: 0xeceff2, blade: 0xffffff, bladeOp: 0.95, hub: "#f6f8fa", hubText: "PRIME", hubInk: "#6b7580", top: "RADEON", topInk: "#6b7580", glow: false }
   }
 };
 const GPU_ORDER = ["u7800xtw", "u4070ti", "u4070tiw", "u4070s", "u4070sw", "u9070xt", "u4070tis", "n9070xtw"];
+
+// Объявления Kufar по нашим видеокартам (любые исполнения), собраны 9 ноября 2026.
+// [название, цена BYN (0 — не указана), новая?, город/район, дата ММ-ДД, id объявления, продаёт компания?]
+const KUFAR_DATE = "9 ноября 2026";
+const KUFAR = {
+  "7800xt": [
+    ["Sapphire Pulse RX 7800 XT", 2200, 0, "Фрунзенский", "11-03", 1092934849, 0]
+  ],
+  "4070s": [
+    ["Palit GeForce RTX 4070 Super Dual", 2450, 0, "Пинск", "11-08", 1092828831, 0],
+    ["RTX 4070 Super", 2550, 0, "Витебск", "11-03", 1092971717, 0],
+    ["Palit RTX 4070 Super 12 GB", 2590, 0, "Фрунзенский", "10-29", 1092131285, 0],
+    ["Palit GeForce RTX 4070 Super Dual 12GB", 2700, 0, "Могилёв", "11-06", 1089126187, 1],
+    ["Gigabyte RTX 4070 Super", 2700, 1, "Фрунзенский", "10-12", 1088964422, 0],
+    ["Palit GeForce RTX 4070 Super JetStream", 2750, 0, "Жлобин", "11-07", 1093680595, 0],
+    ["RTX 4070 Super", 2850, 0, "Мозырь", "11-08", 1093924640, 0],
+    ["Palit GeForce RTX 4070 Super JetStream", 2999, 0, "Гомель", "11-09", 1089990368, 0],
+    ["Gigabyte RTX 4070 Super OC", 2999, 0, "Заводской", "11-08", 1093864466, 0],
+    ["Gigabyte GeForce RTX 4070 Super Aero OC 12G", 3199, 0, "Пинск", "10-24", 1091123716, 0],
+    ["Gigabyte GeForce RTX 4070 Super Gaming OC 12G", 3200, 0, "Кричев", "10-31", 1092477938, 0]
+  ],
+  "4070ti": [
+    ["Palit RTX 4070 Ti GamingPro 12 GB", 2950, 0, "Октябрьский", "11-02", 1092778294, 0],
+    ["MSI GeForce RTX 4070 Ti Ventus 3X 12G OC", 3000, 0, "Мозырь", "11-03", 1092289977, 0],
+    ["Gigabyte GeForce RTX 4070 Ti Gaming OC 12G", 3000, 0, "Фрунзенский", "11-02", 1092773383, 0],
+    ["Palit GeForce RTX 4070 Ti", 3100, 0, "Заводской", "10-28", 1091975090, 0],
+    ["Gigabyte GeForce RTX 4070 Ti", 3250, 0, "Гомель", "09-12", 1075917916, 0]
+  ],
+  "9070xt": [
+    ["Sapphire Radeon RX 9070 XT Pulse 16 GB", 3300, 0, "Московский", "11-09", 1093743263, 0],
+    ["Radeon RX 9070 XT", 3300, 0, "Витебск", "10-28", 1091949088, 0],
+    ["Sapphire Pulse Radeon RX 9070 XT 16 ГБ", 3599, 0, "Первомайский", "11-09", 1093708015, 0],
+    ["Radeon RX 9070 XT", 3600, 0, "Брест", "10-20", 1090174499, 0],
+    ["Gigabyte Aorus RX 9070 XT Elite 16G OC", 3700, 1, "Фрунзенский", "11-09", 1094163336, 0],
+    ["ASUS Prime Radeon RX 9070 XT White OC", 3710, 1, "Центральный", "10-30", 1089641866, 1],
+    ["Acer Nitro Radeon RX 9070 XT OC 16GB", 3800, 1, "Витебск", "09-13", 1055734282, 0],
+    ["Gigabyte RX 9070 XT Gaming OC 16G", 3959, 1, "Гродно", "11-09", 1055727680, 1],
+    ["Sapphire Nitro+ Radeon RX 9070 XT", 4000, 0, "Советский", "11-07", 1093732988, 0]
+  ],
+  "4070tis": [
+    ["RTX 4070 Ti Super (без названия)", 3100, 0, "Лида", "10-16", 1089674433, 0],
+    ["Gigabyte GeForce RTX 4070 Ti Super Aero", 3250, 0, "Гомель", "09-21", 1066313418, 0],
+    ["RTX 4070 Ti Super", 3800, 0, "Центральный", "11-09", 1094153870, 0],
+    ["Palit GeForce RTX 4070 Ti Super", 4000, 0, "Орша", "10-25", 1091225064, 0],
+    ["Palit GeForce RTX 4070 Ti Super GamingPro White OC", 4000, 0, "Гомель", "09-29", 1087084116, 0],
+    ["PNY RTX 4070 Ti Super 16G XLR8", 4300, 0, "Первомайский", "10-15", 1073511750, 0],
+    ["Palit GeForce RTX 4070 Ti Super GamingPro", 5000, 0, "Витебск", "09-27", 1048742239, 0],
+    ["Inno3D GeForce RTX 4070 Ti Super X3 OC", 0, 0, "Мозырь", "11-09", 1094166671, 0]
+  ]
+};
+const MINSK_DISTRICTS = /^(Центральный|Фрунзенский|Октябрьский|Заводской|Московский|Первомайский|Советский|Ленинский|Партизанский)$/;
+const kCity = c => MINSK_DISTRICTS.test(c) ? "Минск, " + c : c;
+function kStats(chip) {
+  const u = (KUFAR[chip] || []).filter(r => !r[2] && r[1] > 0).map(r => r[1]).sort((a, b) => a - b);
+  if (!u.length) return null;
+  const mid = u.length % 2 ? u[(u.length - 1) / 2] : (u[u.length / 2 - 1] + u[u.length / 2]) / 2;
+  return { med: Math.round(mid / 50) * 50, min: u[0], max: u[u.length - 1], n: u.length };
+}
+GPU_ORDER.forEach(k => { const g = GPUS[k]; if (g.used && g.chip) { const s = kStats(g.chip); if (s) { g.price = s.med; g.kstat = s; } } });
 
 const PARTS = [
   { id: "cpu", type: "Процессор", name: "AMD Ryzen 7 9700X", desc: "8 ядер, 16 потоков. Один из лучших процессоров для игр и работы. Уже куплен.", price: CPU_PRICE, have: true, url: "/cpu/amd/100000001404", photos: imgs("cpu", 1),
@@ -500,8 +576,8 @@ const eur = n => Math.round(n / EUR_RATE).toLocaleString("ru-RU") + " €";
 const onl = path => path.startsWith("http") ? path : ONL + path;
 const linkText = url => url.includes("kufar") ? "Объявления на Kufar →" : "Смотреть на Onliner →";
 
-let current = "u4070tiw";
-try { const s = localStorage.getItem("gpu6"); if (s && GPUS[s]) current = s; } catch (e) {}
+let current = "u4070ti";
+try { const s = localStorage.getItem("gpu7"); if (s && GPUS[s]) current = s; } catch (e) {}
 
 function info(id) {
   const p = PARTS.find(x => x.id === id);
@@ -509,7 +585,7 @@ function info(id) {
   if (!p.gpu) return p;
   const g = GPUS[current];
   return { id: p.id, type: p.type, name: g.name, desc: g.desc, price: g.price, url: g.url, specs: g.specs, photos: g.photos,
-    shop: g.used ? `б/у, медиана Kufar (${g.range} BYN)` : g.shop };
+    shop: g.used ? (g.kstat ? `б/у: медиана ${g.kstat.n} объявл. на Kufar, ${g.kstat.min.toLocaleString("ru-RU")}–${g.kstat.max.toLocaleString("ru-RU")} BYN` : "б/у, по объявлениям Kufar") : g.shop };
 }
 const totalFor = gpuKey => PARTS.reduce((s, p) => s + (p.gpu ? GPUS[gpuKey].price : p.have ? 0 : p.price), 0);
 
@@ -518,7 +594,7 @@ const gpuListeners = [];
 function setGpu(kind) {
   if (!GPUS[kind] || kind === current) return;
   current = kind;
-  try { localStorage.setItem("gpu6", current); } catch (e) {}
+  try { localStorage.setItem("gpu7", current); } catch (e) {}
   render();
 }
 
@@ -538,7 +614,8 @@ function buildGpuControls() {
     b.querySelector(".swatch").style.background = g.swatch;
     b.querySelector(".gpu-top span:last-child").textContent = g.short;
     b.querySelector(".gsub").textContent = `${g.brand} · ${g.color}`;
-    b.querySelector(".gprice").textContent = `${g.used ? "≈ " : ""}${rub(g.price)} · сборка ${eur(totalFor(k))}`;
+    const kn = g.chip ? (KUFAR[g.chip] || []).length : 0;
+    b.querySelector(".gprice").textContent = `${g.used ? "≈ " : ""}${rub(g.price)} · сборка ${eur(totalFor(k))}${g.used ? ` · ${kn} объявл.` : ""}`;
     if (g.tag) b.querySelector(".gtag").textContent = g.tag;
     b.addEventListener("click", () => setGpu(k));
     grid.appendChild(b);
@@ -569,6 +646,33 @@ function render() {
     li.querySelector(".shop").textContent = item.have ? "куплен, стоит ≈ 782 BYN" : (item.shop || "");
     list.appendChild(li);
   });
+  // объявления Kufar по выбранной видеокарте (все исполнения этого чипа)
+  const kb = document.getElementById("kufarBox");
+  const krows = KUFAR[gpu.chip] || [];
+  kb.innerHTML = "";
+  const kh = document.createElement("div"); kh.className = "k-head";
+  kh.innerHTML = "<b></b><span></span>";
+  kh.querySelector("b").textContent = `Объявления на Kufar: ${gpu.short}`;
+  kh.querySelector("span").textContent = `${krows.length} шт., любые исполнения · собраны ${KUFAR_DATE}`;
+  kb.appendChild(kh);
+  if (!krows.length) {
+    const e = document.createElement("p"); e.className = "k-empty"; e.textContent = "Сейчас объявлений нет."; kb.appendChild(e);
+  } else {
+    const ul = document.createElement("ul"); ul.className = "k-list";
+    krows.forEach(r => {
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="kt"><span></span><span class="kbadge"></span></span><span class="kmeta"></span><span class="kp"></span><a target="_blank" rel="noopener">Открыть →</a>`;
+      li.querySelector(".kt span").textContent = r[0];
+      const b = li.querySelector(".kbadge"); b.textContent = r[2] ? "новая" : (r[6] ? "б/у · магазин" : "б/у"); if (r[2]) b.classList.add("new");
+      const [mm, dd] = r[4].split("-");
+      li.querySelector(".kmeta").textContent = `${kCity(r[3])} · ${dd}.${mm}`;
+      li.querySelector(".kp").textContent = r[1] ? rub(r[1]) : "цена не указана";
+      li.querySelector("a").href = "https://www.kufar.by/item/" + r[5];
+      ul.appendChild(li);
+    });
+    kb.appendChild(ul);
+  }
+
   // список покупок
   const buy = document.getElementById("buyList");
   buy.innerHTML = "";
