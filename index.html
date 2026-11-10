@@ -79,6 +79,7 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid
 .sel { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 0 6px 0 16px; font-size: 0.92rem; }
 .sel span { color: var(--muted); }
 .sel select { border: 0; background: transparent; color: var(--fg); padding: 9px 6px; font-weight: 500; max-width: 250px; cursor: pointer; }
+.sel input[type="color"] { width: 28px; height: 28px; border: 0; padding: 0; background: none; cursor: pointer; border-radius: 50%; }
 .hint { position: absolute; left: 16px; bottom: 14px; font-size: 0.82rem; color: var(--muted); pointer-events: none; }
 .back-btn { position: absolute; left: 14px; bottom: 14px; z-index: 2; }
 .tip { position: absolute; pointer-events: none; background: var(--fg); color: var(--bg); font-size: 0.8rem; padding: 5px 10px; border-radius: 8px; white-space: nowrap; z-index: 3; }
@@ -264,7 +265,7 @@ footer { padding-block: 32px 48px; color: var(--muted); font-size: 0.85rem; bord
     <div class="stage" id="stage">
       <div class="toolbar">
         <button type="button" class="tbtn primary" id="btnExplode">Разобрать</button>
-        <button type="button" class="tbtn" id="btnRgb">Подсветка: лёд</button>
+        <label class="sel" for="rgbSelect"><span>Подсветка</span><select id="rgbSelect"></select><input type="color" id="rgbColor" value="#7cc2ff" aria-label="Свой цвет подсветки" hidden></label>
         <button type="button" class="tbtn" id="btnReset">Сбросить вид</button>
         <label class="sel" for="gpuSelect"><span>Видеокарта</span><select id="gpuSelect"></select></label>
       </div>
@@ -847,6 +848,22 @@ document.getElementById("copyList").addEventListener("click", () => {
     for (let i = -2; i < 4; i++) { c.beginPath(); c.moveTo(i * W / 2, 0); c.lineTo(i * W / 2 + W, H); c.stroke(); }
   });
   sleeveT.wrapS = sleeveT.wrapT = THREE.RepeatWrapping; sleeveT.repeat.set(26, 2);
+  // ARGB-эффекты для колец подсветки: картинка «бежит» по кольцу (u — вдоль кольца)
+  const ledTex = draw => { const t = canvasTex(256, 4, draw); t.wrapS = THREE.RepeatWrapping; return t; };
+  const LED_WHITE = ledTex((c, W, H) => { c.fillStyle = "#fff"; c.fillRect(0, 0, W, H); });
+  const LED_RAINBOW = ledTex((c, W, H) => { for (let x = 0; x < W; x++) { c.fillStyle = `hsl(${(x / W) * 360},100%,55%)`; c.fillRect(x, 0, 1, H); } });
+  const LED_COMET = ledTex((c, W, H) => {
+    c.fillStyle = "#000"; c.fillRect(0, 0, W, H);
+    [0, 0.5].forEach(o => { for (let x = 0; x < W * 0.32; x++) { const k = 1 - x / (W * 0.32); c.fillStyle = `rgba(255,255,255,${Math.pow(k, 1.6)})`; c.fillRect(((o * W - x) % W + W) % W, 0, 1, H); } });
+  });
+  const LED_DOTS = ledTex((c, W, H) => { c.fillStyle = "#000"; c.fillRect(0, 0, W, H); c.fillStyle = "#fff"; for (let i = 0; i < 16; i++) c.fillRect(i * 16, 0, 8, H); });
+  // мягкий ореол вокруг светящегося кольца (складывается со светом сцены)
+  const haloT = canvasTex(256, 256, (c, W, H) => {
+    const g = c.createRadialGradient(W / 2, H / 2, W * 0.2, W / 2, H / 2, W / 2);
+    g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(0.5, "rgba(255,255,255,0.05)");
+    g.addColorStop(0.71, "rgba(255,255,255,0.85)"); g.addColorStop(0.8, "rgba(255,255,255,0.25)"); g.addColorStop(1, "rgba(255,255,255,0)");
+    c.fillStyle = g; c.fillRect(0, 0, W, H);
+  });
   function finTex(dark) {
     const t = canvasTex(64, 64, (c, W, H) => {
       c.fillStyle = dark ? "#3b4148" : "#d9dfe4"; c.fillRect(0, 0, W, H);
@@ -909,11 +926,26 @@ document.getElementById("copyList").addEventListener("click", () => {
     p.mats.push(m);
     return m;
   }
-  function glowM(p, k, ph, fixed) {
-    const m = M(p, { color: 0xeef6ff, emissive: fixed || 0x7cc2ff, emissiveIntensity: k, roughness: 0.4 });
+  function glowM(p, k, ph, fixed, ring) {
+    const m = M(p, { color: 0xeef6ff, emissive: fixed || 0x7cc2ff, emissiveIntensity: k, roughness: 0.4, emissiveMap: ring ? LED_WHITE : null });
     m.userData.glow = true;
-    glows.push({ mat: m, k, ph, owner: p.id, fixed });
+    const gw = { mat: m, k, ph, owner: p.id, fixed, ring: !!ring, halos: [], meshes: [] };
+    if (ring) gw.maps = { white: LED_WHITE, rainbow: LED_RAINBOW.clone(), comet: LED_COMET.clone(), dots: LED_DOTS.clone() };
+    if (ring) ["rainbow", "comet", "dots"].forEach(k2 => { gw.maps[k2].needsUpdate = true; });
+    m.userData.gw = gw;
+    glows.push(gw);
     return m;
+  }
+  // ореол: плоскость с мягким кольцом света, повёрнута так же, как кольцо
+  function addHalo(p, parent, gm, radius, z) {
+    const mat = new THREE.MeshBasicMaterial({ map: haloT, color: 0x000000, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    mat.userData = { base: 1, keepT: true, glow: true, noDepth: true };
+    p.mats.push(mat);
+    const h = new THREE.Mesh(new THREE.PlaneGeometry(radius * 2.8, radius * 2.8), mat);
+    h.position.z = z; h.userData.noCast = true; h.userData.noPick = true; h.renderOrder = 2;
+    parent.add(h);
+    gm.userData.gw.halos.push(mat);
+    return h;
   }
   const geoCache = {};
   function rgeo(w, h, d, r) {
@@ -964,26 +996,47 @@ document.getElementById("copyList").addEventListener("click", () => {
     const ph = Math.random() * 6;
     const bladeOp = o.bladeOp !== undefined ? o.bladeOp : 1;
     const bladeMat = M(p, { color: o.blade !== undefined ? o.blade : 0xffffff, roughness: o.dark ? 0.55 : 0.32, opacity: bladeOp, transparent: bladeOp < 1, side: THREE.DoubleSide, envMapIntensity: o.dark ? 0.2 : 1 });
-    if (o.glow) { bladeMat.userData.glow = true; bladeMat.emissive.setHex(0x7cc2ff); glows.push({ mat: bladeMat, k: o.bladeGlow || 0.2, ph, owner: p.id }); }
+    if (o.glow) { bladeMat.userData.glow = true; bladeMat.emissive.setHex(0x7cc2ff); const bg = { mat: bladeMat, k: o.bladeGlow || 0.2, ph, owner: p.id, halos: [], meshes: [g], blade: true }; bladeMat.userData.gw = bg; glows.push(bg); }
     if (o.framed) {
       const s = size / 2, cr = size * 0.08;
       const sh = new THREE.Shape();
       sh.moveTo(-s + cr, -s); sh.lineTo(s - cr, -s); sh.quadraticCurveTo(s, -s, s, -s + cr); sh.lineTo(s, s - cr); sh.quadraticCurveTo(s, s, s - cr, s);
       sh.lineTo(-s + cr, s); sh.quadraticCurveTo(-s, s, -s, s - cr); sh.lineTo(-s, -s + cr); sh.quadraticCurveTo(-s, -s, -s + cr, -s);
       const hole = new THREE.Path(); hole.absarc(0, 0, r, 0, Math.PI * 2, true); sh.holes.push(hole);
-      const geo = new THREE.ExtrudeGeometry(sh, { depth: thick, bevelEnabled: false, curveSegments: 40 });
-      geo.translate(0, 0, -thick / 2);
+      const bv = size * 0.012;
+      const geo = new THREE.ExtrudeGeometry(sh, { depth: thick - 2 * bv, bevelEnabled: true, bevelThickness: bv, bevelSize: bv * 0.6, bevelSegments: 3, curveSegments: 48 });
+      geo.translate(0, 0, -(thick - 2 * bv) / 2);
       g.add(new THREE.Mesh(geo, frameMat));
+      // внутренний бортик вокруг лопастей (труба рамки)
+      const duct = new THREE.Mesh(new THREE.CylinderGeometry(r, r, thick * 0.96, 72, 1, true), frameMat);
+      duct.rotation.x = Math.PI / 2; g.add(duct);
+      // резиновые уголки с винтами
+      const padM = o.padMat || frameMat;
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => {
+        const cx = a * (s - size * 0.075), cy = b * (s - size * 0.075);
+        [1, -1].forEach(side => {
+          const pad = new THREE.Mesh(new THREE.CylinderGeometry(size * 0.05, size * 0.05, size * 0.012, 20), padM);
+          pad.rotation.x = Math.PI / 2; pad.position.set(cx, cy, side * (thick / 2 + size * 0.004)); g.add(pad);
+        });
+        const sc = new THREE.Mesh(new THREE.CylinderGeometry(size * 0.022, size * 0.022, size * 0.016, 12), o.screwMat || frameMat);
+        sc.rotation.x = Math.PI / 2; sc.position.set(cx, cy, thick / 2 + size * 0.012); g.add(sc);
+      });
       if (o.glow) {
-        const gm = glowM(p, 1.5, ph);
-        const tg = new THREE.TorusGeometry(r * 0.985, size * 0.016, 10, 72);
-        const r1 = new THREE.Mesh(tg, gm); r1.position.z = thick / 2; r1.userData.noCast = true; g.add(r1);
-        const r2 = new THREE.Mesh(tg, gm); r2.position.z = -thick / 2; r2.userData.noCast = true; g.add(r2);
+        // ARGB-кольца с двух сторон рамки и мягкий ореол
+        const gm = glowM(p, 1.05, ph, null, true);
+        const tg = new THREE.TorusGeometry(r * 0.985, size * 0.026, 12, 96);
+        [1, -1].forEach(side => {
+          const rr = new THREE.Mesh(tg, gm); rr.position.z = side * thick / 2; rr.userData.noCast = true; g.add(rr);
+          gm.userData.gw.meshes.push(rr);
+          addHalo(p, g, gm, r, side * (thick / 2 + size * 0.02));
+        });
       }
       for (let i = 0; i < 4; i++) {
-        const st = new THREE.Mesh(new THREE.BoxGeometry(r, size * 0.025, size * 0.03), frameMat);
+        const st = new THREE.Mesh(new THREE.BoxGeometry(r, size * 0.03, size * 0.035), frameMat);
         st.geometry.translate(r / 2, 0, 0); st.rotation.z = Math.PI / 4 + i * Math.PI / 2; st.position.z = -thick * 0.42; g.add(st);
       }
+      const motor = new THREE.Mesh(new THREE.CylinderGeometry(hubR * 1.05, hubR * 1.05, thick * 0.12, 40), frameMat);
+      motor.rotation.x = Math.PI / 2; motor.position.z = -thick * 0.42; g.add(motor);
     } else {
       const ringM = o.ringMat || frameMat;
       const ring = new THREE.Mesh(new THREE.TorusGeometry(r * 1.03, size * 0.018, 10, 72), ringM); ring.position.z = thick * 0.2; g.add(ring);
@@ -993,9 +1046,11 @@ document.getElementById("copyList").addEventListener("click", () => {
     hub.rotation.x = Math.PI / 2; rot.add(hub);
     const capM = o.hubTex ? M(p, { map: o.hubTex, roughness: 0.35, metalness: o.hubMetal ? 0.6 : 0.05 }) : (o.glow ? glowM(p, 0.6, ph) : frameMat);
     const cap = new THREE.Mesh(new THREE.CircleGeometry(o.hubTex ? hubR * 0.98 : hubR * 0.7, 40), capM); cap.position.z = thick * 0.36; cap.userData.noCast = true; rot.add(cap);
+    if (o.glow && !o.hubTex) gm0(cap);
+    function gm0(mesh) { if (capM.userData.gw) capM.userData.gw.meshes.push(mesh); }
     const n = o.framed ? 9 : (o.blades || 11);
     const bs = new THREE.Shape();
-    const w0 = o.framed ? 0.06 : 0.07;
+    const w0 = o.framed ? 0.065 : 0.07;
     bs.moveTo(hubR * 0.9, -size * w0);
     bs.bezierCurveTo(r * 0.45, -size * 0.2, r * 0.8, -size * 0.14, r * 0.98, -size * 0.02);
     bs.quadraticCurveTo(r * 0.7, size * 0.09, hubR * 0.9, size * w0);
@@ -1035,7 +1090,7 @@ document.getElementById("copyList").addEventListener("click", () => {
         p.meshes.push(o);
         o.castShadow = !o.userData.noCast && !p.noCast;
         o.receiveShadow = true;
-        if (id !== "glass" && id !== "cables") pickables.push(o);
+        if (id !== "glass" && id !== "cables" && !o.userData.noPick) pickables.push(o);
       }
     });
     scene.add(p.group);
@@ -1133,8 +1188,10 @@ document.getElementById("copyList").addEventListener("click", () => {
 
     // вентиляторы 140 мм: три спереди за сеткой и один сзади
     const fw = M(p, { color: 0xf6f8fa, roughness: 0.4 });
-    [14, 0, -14].forEach(y => { const f = fan(p, fw, 14, 2.5, { framed: true, glow: true, bladeOp: 0.85, bladeGlow: 0.45 }); f.rotation.y = Math.PI / 2; f.position.set(21.4, y, 1.2); g.add(f); });
-    const rf = fan(p, fw, 14, 2.5, { framed: true, glow: true, bladeOp: 0.85, bladeGlow: 0.45 }); rf.rotation.y = -Math.PI / 2; rf.position.set(-21.6, 12.5, 2); g.add(rf);
+    const fpad = M(p, { color: 0xdde2e7, roughness: 0.85 });
+    const fopts = { framed: true, glow: true, blade: 0xdfe6ec, bladeOp: 0.7, bladeGlow: 0.7, padMat: fpad, screwMat: steel };
+    [14, 0, -14].forEach(y => { const f = fan(p, fw, 14, 2.5, fopts); f.rotation.y = Math.PI / 2; f.position.set(21.4, y, 1.2); g.add(f); });
+    const rf = fan(p, fw, 14, 2.5, fopts); rf.rotation.y = -Math.PI / 2; rf.position.set(-21.6, 12.5, 2); g.add(rf);
   });
 
   // стекло — часть корпуса, его прозрачность считается отдельно (пропадает при разборке)
@@ -1436,8 +1493,10 @@ document.getElementById("copyList").addEventListener("click", () => {
     const silver = M(p, { color: 0xe9edf0, roughness: 0.2, metalness: 0.7 });
     cyl(g, 3.5, 2.2, white, PX, PY, PZ, "z", 64);
     cyl(g, 3.6, 0.5, silver, PX, PY, PZ - 0.9, "z", 64);
-    const ringG = glowM(p, 1.6, 2);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(3.3, 0.16, 10, 72), ringG); ring.position.set(PX, PY, PZ + 1.12); ring.userData.noCast = true; g.add(ring);
+    const ringG = glowM(p, 1.15, 2, null, true);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(3.3, 0.16, 10, 96), ringG); ring.position.set(PX, PY, PZ + 1.12); ring.userData.noCast = true; g.add(ring);
+    ringG.userData.gw.meshes.push(ring);
+    const pumpHalo = addHalo(p, g, ringG, 3.3, 0); pumpHalo.position.set(PX, PY, PZ + 1.2);
     const bevel = new THREE.Mesh(new THREE.TorusGeometry(3.45, 0.22, 12, 64), silver); bevel.position.set(PX, PY, PZ + 1.08); g.add(bevel);
     const capT = canvasTex(512, 512, (c, W, H) => {
       const m = W / 2;
@@ -1452,14 +1511,27 @@ document.getElementById("copyList").addEventListener("click", () => {
     capM.userData.glow = true; glows.push({ mat: capM, k: 1.2, ph: 2, owner: "aio" });
     const cap = new THREE.Mesh(new THREE.CircleGeometry(3.15, 64), capM); cap.position.set(PX, PY, PZ + 1.13); g.add(cap);
     label(p, g, textTex(1024, 64, [{ t: "IDEAS TO MAKE A DIFFERENCE", s: 34, y: 0.55 }], null, "#9aa4ae"), 5.6, 0.36, PX, PY - 3.52, PZ + 0.1, Math.PI / 2, 0, 0);
-    box(g, 36, 2.7, 11.6, fins, -1, 21.1, 4);
-    rbox(g, 36, 0.4, 12, 0.15, white, -1, 22.35, 4);
-    rbox(g, 2.2, 3.2, 12.4, 0.4, white, 18, 20.85, 4);
-    rbox(g, 2.2, 3.2, 12.4, 0.4, white, -20, 20.85, 4);
-    label(p, g, textTex(512, 96, [{ t: "ID-COOLING  FX360 INF", s: 44, y: 0.55 }], null, "#8a95a0"), 12, 2.2, -1, 21.1, 9.82);
+    // радиатор: плоские трубки и гофрированные рёбра между ними, белые боковины и баки
+    const finT2 = canvasTex(64, 64, (c, W, H) => {
+      c.fillStyle = "#f2f4f6"; c.fillRect(0, 0, W, H); c.strokeStyle = "#a7b1bb"; c.lineWidth = 2;
+      c.beginPath(); for (let x = -8; x <= W + 8; x += 8) { c.moveTo(x, 0); c.lineTo(x + 4, H / 2); c.lineTo(x, H); } c.stroke();
+    });
+    finT2.wrapS = finT2.wrapT = THREE.RepeatWrapping; finT2.repeat.set(70, 2);
+    const finM2 = M(p, { color: 0xffffff, map: finT2, roughness: 0.5, metalness: 0.35 });
+    const tubeM2 = M(p, { color: 0xe3e7eb, roughness: 0.3, metalness: 0.6 });
+    const nT = 11, pitch = 11.2 / (nT - 1);
+    for (let i = 0; i < nT; i++) box(g, 35.6, 2.6, 0.16, tubeM2, -1, 21.1, 4 - 5.6 + i * pitch);
+    for (let i = 0; i < nT - 1; i++) box(g, 35.6, 2.5, pitch - 0.18, finM2, -1, 21.1, 4 - 5.6 + (i + 0.5) * pitch);
+    rbox(g, 36.4, 0.3, 12.2, 0.12, white, -1, 22.4, 4);
+    rbox(g, 36.4, 2.9, 0.3, 0.1, white, -1, 21.05, 10.0);
+    rbox(g, 36.4, 2.9, 0.3, 0.1, white, -1, 21.05, -2.0);
+    rbox(g, 2.4, 3.4, 12.6, 0.45, white, 18.1, 20.95, 4);
+    rbox(g, 2.4, 3.4, 12.6, 0.45, white, -20.1, 20.95, 4);
+    label(p, g, textTex(512, 96, [{ t: "ID-COOLING  FX360 INF", s: 44, y: 0.55 }], null, "#8a95a0"), 12, 2.2, -1, 21.05, 10.17);
+    label(p, g, textTex(128, 128, [{ t: "ID", s: 70, y: 0.55 }], null, "#a3adb7"), 1.6, 1.6, 18.1, 20.95, 10.32);
+    const padG = M(p, { color: 0xe1e5e9, roughness: 0.8 });
     [-13, -1, 11].forEach(x => {
-      const f = fan(p, white, 12, 2.5, { framed: true, glow: true, bladeOp: 0.85, bladeGlow: 0.5 }); f.rotation.x = Math.PI / 2; f.position.set(x, 18.5, 4); g.add(f);
-      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => cyl(g, 0.28, 0.2, silver, x + a * 5.3, 17.2, 4 + b * 5.3, "y", 12));
+      const f = fan(p, white, 12, 2.5, { framed: true, glow: true, blade: 0xdfe6ec, bladeOp: 0.7, bladeGlow: 0.75, padMat: padG, screwMat: silver }); f.rotation.x = Math.PI / 2; f.position.set(x, 18.5, 4); g.add(f);
     });
     const paths = [
       [[PX + 3.6, PY + 1.0, PZ - 0.2], [PX + 5.4, PY + 3.0, -2.6], [4, 15.5, 1.5], [14.8, 17.4, 2.6], [18, 19.4, 2.6]],
@@ -1508,10 +1580,21 @@ document.getElementById("copyList").addEventListener("click", () => {
   btnExplode.addEventListener("click", () => { select(null); controls.autoRotate = false; setExplode(!exploded); });
   document.getElementById("btnReset").addEventListener("click", () => { select(null); camAnim = true; controls.autoRotate = true; });
 
-  const RGB_MODES = [["ice", "лёд"], ["rainbow", "радуга"], ["warm", "закат"], ["off", "выкл"]];
-  let rgbIdx = 0;
-  const btnRgb = document.getElementById("btnRgb");
-  btnRgb.addEventListener("click", () => { rgbIdx = (rgbIdx + 1) % RGB_MODES.length; btnRgb.textContent = "Подсветка: " + RGB_MODES[rgbIdx][1]; });
+  const RGB_MODES = [
+    ["rainbow", "Радуга (ARGB)"], ["wave", "Волна"], ["comet", "Бегущий огонь"], ["spectrum", "Спектр"], ["ice", "Лёд"],
+    ["breath", "Дыхание"], ["neon", "Неон"], ["fire", "Огонь"], ["sunset", "Закат"], ["matrix", "Матрица"],
+    ["white", "Белый"], ["custom", "Свой цвет"], ["off", "Выключить"]
+  ];
+  let rgbMode = "rainbow";
+  const rgbSel = document.getElementById("rgbSelect"), rgbColor = document.getElementById("rgbColor");
+  try { const s = localStorage.getItem("rgb"), c = localStorage.getItem("rgbColor"); if (s && RGB_MODES.some(m => m[0] === s)) rgbMode = s; if (c) rgbColor.value = c; } catch (e) {}
+  RGB_MODES.forEach(([k, n]) => { const o = document.createElement("option"); o.value = k; o.textContent = n; rgbSel.appendChild(o); });
+  rgbSel.value = rgbMode;
+  const customCol = new THREE.Color(rgbColor.value);
+  const syncRgbUi = () => { rgbColor.hidden = !(rgbMode === "custom" || rgbMode === "breath"); };
+  syncRgbUi();
+  rgbSel.addEventListener("change", () => { rgbMode = rgbSel.value; syncRgbUi(); try { localStorage.setItem("rgb", rgbMode); } catch (e) {} });
+  rgbColor.addEventListener("input", () => { customCol.set(rgbColor.value); try { localStorage.setItem("rgbColor", rgbColor.value); } catch (e) {} });
 
   const panel = document.getElementById("panel");
   const chips = document.getElementById("chips");
@@ -1650,7 +1733,7 @@ document.getElementById("copyList").addEventListener("click", () => {
       const t = m.userData.keepT || p.op < 0.995;
       if (t !== m.transparent) { m.transparent = t; m.needsUpdate = true; }
       m.opacity = m.userData.base * p.op;
-      m.depthWrite = !t || (p.op > 0.6 && m.userData.base > 0.5);
+      m.depthWrite = m.userData.noDepth ? false : (!t || (p.op > 0.6 && m.userData.base > 0.5));
     });
     const cast = p.op > 0.6 && !p.noCast;
     p.meshes.forEach(o => { o.castShadow = cast && !o.userData.noCast; });
@@ -1667,24 +1750,47 @@ document.getElementById("copyList").addEventListener("click", () => {
   const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (reduce) { controls.autoRotate = false; camAnim = false; camera.position.copy(DEF_CAM); }
 
+  const vPos = new THREE.Vector3(), haloCol = new THREE.Color(), repCol = new THREE.Color();
+  // каждый режим задаёт цвет, яркость и (для колец) рисунок, который бежит по кольцу
   function updateGlow(t) {
-    const mode = RGB_MODES[rgbIdx][0];
+    const mode = rgbMode;
+    let rep = false;
     glows.forEach(gw => {
       const m = gw.mat;
-      if (mode === "off") { m.emissiveIntensity = 0; return; }
-      if (gw.fixed) { m.emissive.setHex(gw.fixed); m.emissiveIntensity = gw.k; return; }
-      if (mode === "ice") { col.setHSL(0.565, 0.85, 0.62); m.emissiveIntensity = gw.k * (1.05 + 0.3 * Math.sin(t * 1.5 + gw.ph)); }
-      else if (mode === "rainbow") { col.setHSL((t * 0.09 + gw.ph * 0.06) % 1, 0.95, 0.55); m.emissiveIntensity = gw.k * 1.35; }
-      else { col.setHSL(0.02 + 0.06 * (0.5 + 0.5 * Math.sin(t * 0.8 + gw.ph)), 0.95, 0.56); m.emissiveIntensity = gw.k * 1.25; }
-      m.emissive.copy(col);
+      if (!gw.halos) gw.halos = [];
+      if (!gw.meshes) gw.meshes = [];
+      if (mode === "off") { m.emissiveIntensity = 0; gw.halos.forEach(h => h.color.setRGB(0, 0, 0)); return; }
+      if (gw.fixed) { m.emissive.setHex(gw.fixed); m.emissiveIntensity = gw.k; gw.halos.forEach(h => h.color.setHex(gw.fixed).multiplyScalar(0.4)); return; }
+      let pos = gw.ph * 0.1;
+      if (gw.meshes.length) { gw.meshes[0].getWorldPosition(vPos); pos = vPos.y * 0.025 + vPos.x * 0.012; }
+      let mapKey = "white", inten = 1, scroll = 0;
+      switch (mode) {
+        case "rainbow": col.setHSL(((t * 0.12 + gw.ph * 0.1) % 1 + 1) % 1, 0.95, 0.55); if (gw.ring) { mapKey = "rainbow"; scroll = t * 0.35 + gw.ph; inten = 1.25; } break;
+        case "wave": col.setHSL(((t * 0.18 - pos) % 1 + 1) % 1, 0.95, 0.55); inten = 1.2; break;
+        case "comet": col.setHSL((t * 0.05) % 1, 0.9, 0.58); if (gw.ring) { mapKey = "comet"; scroll = t * 0.9 + gw.ph; inten = 1.7; } break;
+        case "spectrum": col.setHSL((t * 0.1) % 1, 0.95, 0.55); inten = 1.15; break;
+        case "ice": col.setHSL(0.565, 0.85, 0.62); inten = 1.05 + 0.25 * Math.sin(t * 1.5 + gw.ph); break;
+        case "breath": col.copy(customCol); inten = 0.12 + 1.0 * (0.5 + 0.5 * Math.sin(t * 2.2)); break;
+        case "neon": { const pink = Math.floor(gw.ph * 10) % 2 === 0; col.setHSL(pink ? 0.9 : 0.52, 1, 0.58); if (gw.ring) { mapKey = "dots"; scroll = t * 0.25 * (pink ? 1 : -1) + gw.ph; inten = 1.6; } break; }
+        case "fire": col.setHSL(0.02 + 0.06 * (0.5 + 0.5 * Math.sin(t * 9 + gw.ph * 5)), 1, 0.52); inten = 1.05 + 0.4 * Math.sin(t * 13 + gw.ph * 7) * Math.sin(t * 5.3 + gw.ph); break;
+        case "sunset": col.setHSL(0.02 + 0.06 * (0.5 + 0.5 * Math.sin(t * 0.8 + gw.ph)), 0.95, 0.56); inten = 1.1; break;
+        case "matrix": col.setHSL(0.36, 1, 0.5); if (gw.ring) { mapKey = "dots"; scroll = -t * 0.5 + gw.ph; inten = 1.5; } break;
+        case "white": col.setRGB(1, 1, 1); inten = 0.85; break;
+        case "custom": col.copy(customCol); inten = 1.1; break;
+      }
+      if (gw.ring) {
+        const tex = gw.maps[mapKey];
+        if (m.emissiveMap !== tex) m.emissiveMap = tex;
+        if (mapKey !== "white") tex.offset.x = ((scroll % 1) + 1) % 1;
+        if (mapKey === "rainbow") m.emissive.setRGB(1, 1, 1); else m.emissive.copy(col);
+        if (!rep) { repCol.copy(col); rep = true; }
+      } else m.emissive.copy(col);
+      m.emissiveIntensity = gw.k * inten;
+      if (gw.halos.length) { haloCol.copy(col).multiplyScalar(Math.min(1.3, 0.45 * gw.k * inten)); gw.halos.forEach(h => h.color.copy(haloCol)); }
     });
+    // свет внутри корпуса подстраивается под подсветку
     if (mode === "off") glowLight.intensity = 0;
-    else {
-      glowLight.intensity = 0.9;
-      if (mode === "ice") glowLight.color.setHSL(0.565, 0.8, 0.7);
-      else if (mode === "rainbow") glowLight.color.setHSL((t * 0.09) % 1, 0.9, 0.6);
-      else glowLight.color.setHSL(0.05, 0.9, 0.6);
-    }
+    else { glowLight.intensity = 1.1; glowLight.color.copy(rep ? repCol : col); }
   }
 
   function frame() {
